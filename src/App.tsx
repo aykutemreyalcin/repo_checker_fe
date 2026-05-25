@@ -13,6 +13,70 @@ function isTerminal(status: ScanResultResponse['status']) {
   return status === 'COMPLETED' || status === 'FAILED'
 }
 
+function formatFindingText(finding: Finding, index: number): string {
+  const line =
+    finding.lineNumber != null ? `:${finding.lineNumber}` : ''
+  const lines = [
+    `[${index + 1}] ${finding.severity} — ${finding.category}`,
+    `File: ${finding.filePath}${line}`,
+    `Description: ${finding.description}`,
+  ]
+  if (finding.snippet) {
+    lines.push(`Snippet:\n${finding.snippet}`)
+  }
+  return lines.join('\n')
+}
+
+function formatResultsAsTxt(
+  result: ScanResultResponse,
+  repoUrl: string,
+): string {
+  const header = [
+    'RepoChecker Scan Results',
+    `Repository: ${result.repoUrl ?? repoUrl}`,
+    `Status: ${result.status}`,
+    `Generated: ${new Date().toISOString()}`,
+    '',
+  ]
+
+  if (result.status === 'FAILED') {
+    header.push(`Error: ${result.errorMessage ?? 'Scan failed'}`)
+    return header.join('\n')
+  }
+
+  const count = result.findingCount ?? result.findings?.length ?? 0
+  header.push(`Findings: ${count}`, '')
+
+  if (count === 0) {
+    header.push('No issues found.')
+    return header.join('\n')
+  }
+
+  const body = (result.findings ?? []).map((finding, index) =>
+    formatFindingText(finding, index),
+  )
+  return [...header, ...body].join('\n\n')
+}
+
+function downloadTxt(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function scanResultFilename(repoUrl: string): string {
+  const slug = repoUrl
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  const base = slug || 'scan-results'
+  return `${base}.txt`
+}
+
 function FindingItem({ finding }: { finding: Finding }) {
   const severity = finding.severity.toLowerCase()
   const line =
@@ -97,6 +161,19 @@ function App() {
     }
   }
 
+  const handleReset = () => {
+    window.location.reload()
+  }
+
+  const handleDownloadTxt = () => {
+    if (!scanResult) return
+    const content = formatResultsAsTxt(scanResult, trimmedUrl)
+    downloadTxt(content, scanResultFilename(trimmedUrl))
+  }
+
+  const showDownload =
+    scanResult != null && !isChecking && isTerminal(scanResult.status)
+
   return (
     <main className="app">
       <h1 className="title">RepoChecker</h1>
@@ -120,6 +197,13 @@ function App() {
         >
           Check
         </button>
+        <button
+          type="button"
+          className="action-btn"
+          onClick={handleReset}
+        >
+          Reset
+        </button>
       </div>
 
       {error ? <p className="status error">{error}</p> : null}
@@ -128,6 +212,18 @@ function App() {
 
       {scanResult && !isChecking ? (
         <section className="results" aria-live="polite">
+          {showDownload ? (
+            <div className="results-actions">
+              <button
+                type="button"
+                className="action-btn"
+                onClick={handleDownloadTxt}
+              >
+                Download TXT
+              </button>
+            </div>
+          ) : null}
+
           {scanResult.status === 'FAILED' ? (
             <p className="status error">
               {scanResult.errorMessage ?? 'Scan failed'}
