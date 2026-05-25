@@ -74,6 +74,31 @@
   cursor: not-allowed;
 }
 
+.action-btn {
+  padding: 0.6rem 1.1rem;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.action-btn:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: #fff;
+}
+
+.results-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
 .status {
   margin: 1.5rem 0 0;
   font-size: 0.95rem;
@@ -191,7 +216,8 @@
     flex-direction: column;
   }
 
-  .check-btn {
+  .check-btn,
+  .action-btn {
     width: 100%;
   }
 }

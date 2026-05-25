@@ -1,73 +1,100 @@
-# React + TypeScript + Vite
+# RepoChecker — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React UI for entering a GitHub repository URL, starting a security scan, and listing the results.
 
-Currently, two official plugins are available:
+Talks to the backend (`repo_checker_be`); in development, Vite proxies `/api` requests to `http://localhost:8080`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- Repo URL input and **Check** to start a scan
+- **Reset** reloads the page and clears state
+- **Download TXT** exports completed scan results as a text file
+- Polls every 2 seconds by `jobId` (`POLL_MS = 2000`)
+- Findings: severity (`CRITICAL` … `LOW`), category, file path, line, description, masked snippet
+- Terminal states: `COMPLETED`, `FAILED`
+- Clear error message when the backend is unreachable
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Requirements
 
-## Expanding the ESLint configuration
+- Node.js 20+ (recommended)
+- Running backend: [repo_checker_be](../repo_checker_be) on `localhost:8080`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Setup and run
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd repo_checker_fe
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open **http://localhost:5173** in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Example URL: `https://github.com/owner/repo`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Other commands
+
+```bash
+npm run build    # build to dist/
+npm run preview  # preview production build
+npm run lint     # ESLint
 ```
+
+## API layer
+
+`src/api/githubScan.ts`:
+
+| Function | Endpoint |
+|----------|----------|
+| `startScan(repoUrl)` | `POST /api/github/scan` |
+| `getScanResult(jobId)` | `GET /api/github/scan/{jobId}` |
+
+Types: `ScanStatus`, `Severity`, `FindingCategory`, `Finding`, `ScanResultResponse`.
+
+Proxy (`vite.config.ts`):
+
+```ts
+server: {
+  proxy: {
+    '/api': { target: 'http://localhost:8080', changeOrigin: true },
+  },
+},
+```
+
+For a production build served from the same origin, configure a reverse proxy or an `API_BASE` environment variable for the backend URL (currently hardcoded to `/api/github/scan`).
+
+## Project structure
+
+```
+src/
+  App.tsx           # Main page, form, polling, results list
+  App.css           # Styles
+  api/githubScan.ts # Backend client
+  index.css         # Global styles
+```
+
+## Running with the backend
+
+1. Terminal 1 — backend:
+
+   ```bash
+   cd ../repo_checker_be && ./mvnw spring-boot:run
+   ```
+
+2. Terminal 2 — frontend:
+
+   ```bash
+   npm run dev
+   ```
+
+The backend CORS config already allows port `5173`; with the proxy, browser requests go through the same origin.
+
+## Stack
+
+- React 19
+- TypeScript
+- Vite 8
+- ESLint
+
+## Related project
+
+API and scan logic: [repo_checker_be](../repo_checker_be)
